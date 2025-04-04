@@ -76,11 +76,24 @@ class MergeHighlightOperator(bpy.types.Operator):
         mesh = obj.data
         bm = bmesh.from_edit_mesh(mesh)
 
-        original_verts = set(tuple(v.co.copy()) for v in bm.verts)
+        verts = {}
+        for v in bm.verts:
+            vert = tuple(v.co.copy())
+            if vert not in verts:
+                verts[vert] = 0
+            verts[vert] += 1
+
+        original_verts = set(verts.keys())
+        duplicate_verts = set()
+        for vert, count in verts.items():
+            if count > 1:
+                duplicate_verts.add(vert)
+
         bpy.ops.mesh.remove_doubles(threshold=self.merge_distance, use_unselected=self.unselected, use_sharp_edge_from_normals=self.sharp_edges)
         merged_verts = set(tuple(v.co.copy()) for v in bm.verts)
 
-        removed_verts = original_verts - merged_verts
+        removed_verts = (original_verts - merged_verts).union(duplicate_verts)
+
         highlight_coords = list(map(Vector, removed_verts))
 
 
