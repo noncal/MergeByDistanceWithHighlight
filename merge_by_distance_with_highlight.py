@@ -23,7 +23,7 @@
 bl_info = {
     'name': 'Merge by distance with highlight',
     'author': 'non_col',
-    'version': (1, 1),
+    'version': (1, 2),
     'blender': (4, 2, 0),
     'description': 'Highlight vertices that will be removed when performing merge by distance',
     'category': 'Mesh',
@@ -78,6 +78,8 @@ class MergeHighlightOperator(bpy.types.Operator):
 
         verts = {}
         for v in bm.verts:
+            if not v.select:
+                continue
             vert = tuple(v.co.copy())
             if vert not in verts:
                 verts[vert] = 0
@@ -90,7 +92,7 @@ class MergeHighlightOperator(bpy.types.Operator):
                 duplicate_verts.add(vert)
 
         bpy.ops.mesh.remove_doubles(threshold=self.merge_distance, use_unselected=self.unselected, use_sharp_edge_from_normals=self.sharp_edges)
-        merged_verts = set(tuple(v.co.copy()) for v in bm.verts)
+        merged_verts = set(tuple(v.co.copy()) for v in bm.verts if v.select)
 
         removed_verts = (original_verts - merged_verts).union(duplicate_verts)
 
