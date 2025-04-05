@@ -23,7 +23,7 @@
 bl_info = {
     'name': 'Merge by distance with highlight',
     'author': 'non_col',
-    'version': (1, 2),
+    'version': (1, 3),
     'blender': (4, 2, 0),
     'description': 'Highlight vertices that will be removed when performing merge by distance',
     'category': 'Mesh',
