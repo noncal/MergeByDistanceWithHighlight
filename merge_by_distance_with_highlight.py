@@ -23,7 +23,7 @@
 bl_info = {
     'name': 'Merge by distance with highlight',
     'author': 'non_col',
-    'version': (1, 2),
+    'version': (1, 3),
     'blender': (4, 2, 0),
     'description': 'Highlight vertices that will be removed when performing merge by distance',
     'category': 'Mesh',
@@ -35,9 +35,6 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 from bpy.props import FloatProperty, BoolProperty
-
-handle = None
-highlight_coords = []
 
 
 class MergeHighlightOperator(bpy.types.Operator):
@@ -57,21 +54,20 @@ class MergeHighlightOperator(bpy.types.Operator):
     unselected: BoolProperty(name='Unselected')
     sharp_edges: BoolProperty(name='Sharp Edges')
 
+    draw_handle = None
+    highlight_coords = []
+
 
     def execute(self, context):
-        global handle
-
         self.update_highlight(context)
 
-        if not handle:
-            handle = bpy.types.SpaceView3D.draw_handler_add(draw_callback, (), 'WINDOW', 'POST_VIEW')
+        if not self.__class__.draw_handle:
+            self.__class__.draw_handle = bpy.types.SpaceView3D.draw_handler_add(self.draw_callback, (), 'WINDOW', 'POST_VIEW')
 
         return {'FINISHED'}
 
 
     def update_highlight(self, context):
-        global highlight_coords
-
         obj = context.object
         mesh = obj.data
         bm = bmesh.from_edit_mesh(mesh)
@@ -96,26 +92,25 @@ class MergeHighlightOperator(bpy.types.Operator):
 
         removed_verts = (original_verts - merged_verts).union(duplicate_verts)
 
-        highlight_coords = list(map(Vector, removed_verts))
+        self.__class__.highlight_coords = list(map(Vector, removed_verts))
 
 
-def draw_callback():
-    global handle
+    @staticmethod
+    def draw_callback():
+        op = bpy.context.window_manager.operators
+        if op and not isinstance(op[-1], MergeHighlightOperator):
+            bpy.types.SpaceView3D.draw_handler_remove(MergeHighlightOperator.draw_handle, 'WINDOW')
+            MergeHighlightOperator.draw_handle = None
+            MergeHighlightOperator.highlight_coords.clear()
+            return
 
-    op = bpy.context.window_manager.operators
-    if op and not isinstance(op[-1], MergeHighlightOperator):
-        bpy.types.SpaceView3D.draw_handler_remove(handle, 'WINDOW')
-        handle = None
-        highlight_coords.clear()
-        return
-
-    if highlight_coords:
-        shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-        batch = batch_for_shader(shader, 'POINTS', {'pos': highlight_coords})
-        gpu.state.point_size_set(6.0)
-        shader.bind()
-        shader.uniform_float("color", (1.0, 1.0, 0.0, 0.5))
-        batch.draw(shader)
+        if MergeHighlightOperator.highlight_coords:
+            shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+            batch = batch_for_shader(shader, 'POINTS', {'pos': MergeHighlightOperator.highlight_coords})
+            gpu.state.point_size_set(6.0)
+            shader.bind()
+            shader.uniform_float("color", (1.0, 1.0, 0.0, 0.5))
+            batch.draw(shader)
 
 
 def menu(self, context):
@@ -128,6 +123,9 @@ def register():
 
 
 def unregister():
+    if MergeHighlightOperator.draw_handle:
+        bpy.types.SpaceView3D.draw_handler_remove(MergeHighlightOperator.draw_handle, 'WINDOW')
+        MergeHighlightOperator.draw_handle = None
     bpy.types.VIEW3D_MT_edit_mesh_merge.remove(menu)
     bpy.utils.unregister_class(MergeHighlightOperator)
 
