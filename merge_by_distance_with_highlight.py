@@ -23,7 +23,7 @@
 bl_info = {
     'name': 'Merge by distance with highlight',
     'author': 'non_col',
-    'version': (1, 3),
+    'version': (1, 4),
     'blender': (4, 2, 0),
     'description': 'Highlight vertices that will be removed when performing merge by distance',
     'category': 'Mesh',
@@ -92,7 +92,7 @@ class MergeHighlightOperator(bpy.types.Operator):
 
         removed_verts = (original_verts - merged_verts).union(duplicate_verts)
 
-        self.__class__.highlight_coords = list(map(Vector, removed_verts))
+        self.__class__.highlight_coords = list(map(lambda x: obj.matrix_world @ Vector(x), removed_verts))
 
 
     @staticmethod
